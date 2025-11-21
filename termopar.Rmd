@@ -1,0 +1,110 @@
+---
+title: "R Notebook"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+```{r include = FALSE}
+knitr::opts_chunk$set(echo=FALSE)
+```
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+```{r}
+library(lubridate)
+library(ggplot2)
+library(patchwork)
+library(tidyr)
+
+```
+
+
+```{r}
+termopar <- read.csv("termopar.csv")
+termopar <- subset(termopar, select = -c(X))
+termopar$horario <- as_date(hms(termopar$horario))
+head(termopar)
+```
+```{r}
+ggplot(termopar, aes(x = t1)) + geom_bar()
+```
+
+Separando ensaios em dataframes diferentes
+```{r}
+ensaio1 <- subset(termopar, t1 < 22.5 & t1 > 20)
+ensaio2 <- subset(termopar, t1 > 22.5 & t1 < 30)
+ensaio3 <- subset(termopar, t1 > 30 & t1 < 32.5)
+ensaio4 <- subset(termopar, t1 > 35 & t1 < 40)
+ensaio5 <- subset(termopar, t1 > 40)
+
+tail(ensaio1)
+tail(ensaio2)
+tail(ensaio3)
+tail(ensaio4)
+tail(ensaio5)
+```
+
+
+```{r}
+p1 <- ggplot(ensaio1) + 
+  geom_point(aes(x = horario, y = t1)) + 
+  geom_point(aes(x = horario, y = t2)) + 
+  xlab("") + ggtitle("T1")
+p1
+```
+
+## Media dos ensaios
+```{r}
+m1 <- colMeans(ensaio1[2:7])
+m2 <- colMeans(ensaio2[2:7])
+m3 <- colMeans(ensaio3[2:7])
+m4 <- colMeans(ensaio4[2:7])
+m5 <- colMeans(ensaio5[2:7])
+
+m1; m2; m3; m4; m5
+```
+## Erro Absoluto
+
+- ea1 --> ensaio 1 (20°C)
+- ea2 --> ensaio 2 (25°C)
+...
+- ea5 --> ensaio 5 (40°C)
+```{r}
+ea1 <- abs(20 - m1)
+ea2 <- abs(25 - m2)
+ea3 <- abs(30 - m3)
+ea4 <- abs(35 - m4)
+ea5 <- abs(40 - m5)
+
+ea <- data.frame(ea1,ea2,ea3,ea4,ea5)
+```
+## Erro relativo
+```{r}
+
+```
+
+## Média da diferença entre medidas e máxima diferença entre medidas de cada ensaio
+```{r}
+
+t_diff <- function(x){
+  diff_matrix <- matrix(x, nrow = 6, ncol = 6, byrow = TRUE) - matrix(x, nrow = 6, ncol = 6)
+  diff_matrix <- abs(diff_matrix)
+  
+  print(sum(diff_matrix)/(2 * 6*6/2))
+  print(max(diff_matrix))
+}
+
+print("Ensaio 1 (20 C)")
+t_diff(ea1)
+print("Ensaio 2 (25 C)")
+t_diff(ea2)
+print("Ensaio 3 (30 C)")
+t_diff(ea3)
+print("Ensaio 4 (35 C)")
+t_diff(ea4)
+print("Ensaio 5 (40 C)")
+t_diff(ea5)
+```
+
