@@ -44,7 +44,22 @@ tail(ensaio2)
 tail(ensaio3)
 tail(ensaio4)
 tail(ensaio5)
+
 ```
+
+pivoting data:
+```{r}
+
+teste <- pivot_longer(
+  ensaio1,
+  cols = starts_with("t"),
+  
+  values_to = "temperatura"
+)
+
+head(teste)
+```
+
 
 
 ```{r}
