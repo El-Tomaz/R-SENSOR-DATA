@@ -1,0 +1,206 @@
+---
+title: "Relatório Ensaio Termopares"
+output:
+  pdf_document: default
+  html_document: default
+date: "2025-11-24"
+---
+
+
+Foram realizados 5 ensaios no banho termoestático em 20°C, 25°C, 30°C, 35°C e 40°C. 6 termopares tipo K foram testados em conjunto com o módulo para termopar tipo K MAX6675. Nas tabelas, as colunas t1-t6 apresentam a temperatura dos sensores, em °C.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+```
+
+```{r}
+library(tidyr)
+library(ggplot2)
+library(lubridate)
+library(lemon)
+knit_print.data.frame <- lemon_print
+```
+
+
+```{r, render = lemon_print, include=FALSE}
+# Importando dados
+data <- read.csv("termopar.csv")
+data <- subset(data, select = -c(X)) #dropando coluna x
+head(data)
+```
+
+
+```{r, include = FALSE}
+#categorizando dados
+
+data$ensaio[data$t1 < 22.5] <- 1
+data$ensaio[data$t1 > 25 & data$t1 < 27.5] <- 2
+data$ensaio[data$t1 > 30 & data$t1 < 35] <- 3
+data$ensaio[data$t1 > 35 & data$t1 < 40] <- 4
+data$ensaio[data$t1 > 40] <- 5
+data$ensaio <- factor(data$ensaio)
+
+head(data)
+```
+
+
+```{r}
+
+#pivoting data
+p_data <- pivot_longer(
+  data, 
+  cols = starts_with("t"),
+  names_to = "sensor",
+  values_to = "temperatura",
+)
+
+```
+
+## Média das medições (°C)
+
+```{r, render = lemon_print}
+medias <- aggregate(p_data$temperatura, list(p_data$ensaio, p_data$sensor), mean)
+colnames(medias) <- c("ensaio", "sensor", "temperatura")
+
+pivot_wider(
+  medias,
+  names_from = sensor,
+  values_from = temperatura
+)
+```
+
+```{r}
+diff <- by(medias$temperatura, medias$ensaio, function(a){abs(outer(a,a,'-'))})
+```
+
+
+
+## Máxima diferença entre sensores (°C)
+Para cada ensaio.
+
+```{r, render=lemon_print}
+diff_med <- data.frame(ensaio = 1:5, maxima_diferenca = sapply(diff, max))
+diff_med
+```
+
+## Diferença média entre as medições (°C)
+
+```{r, results='asis'}
+mean(diff_med$maxima_diferenca)
+```
+ 
+## Erro absoluto das médias (°C)
+
+```{r, render = lemon_print}
+erro_absoluto <- pivot_wider(
+  medias,
+  values_from = temperatura,
+  names_from = sensor
+)
+
+erro_absoluto[,-1] <- erro_absoluto[,-1] - seq(20,40,5)
+
+erro_absoluto
+```
+
+```{r, include=FALSE}
+pivot_ea <- pivot_longer(
+  erro_absoluto,
+  cols = starts_with("t"),
+  names_to = "sensor",
+  values_to = "erro"
+)
+
+pivot_ea
+```
+
+```{r}
+ggplot(pivot_ea, aes(x = sensor, y = abs(erro))) + geom_col() + facet_wrap(vars(ensaio), nrow = 1)
+```
+
+
+## Erro relativo das medias 
+Em porcentagem (%)
+
+```{r caption="Erro relativo", render = lemon_print}
+erro_relativo <- erro_absoluto
+erro_relativo[,-1] <- erro_relativo[,-1] / seq(20,40,5) * 100 #excluindo coluna "ensaios" da divisão
+
+erro_relativo
+```
+
+```{r}
+l_erro_relativo <- pivot_longer(
+  erro_relativo,
+  cols = starts_with("t"),
+  values_to = "erro",
+  names_to = "sensor",
+  
+)
+
+er_max  = max(l_erro_relativo$erro)
+er_min  = min(l_erro_relativo$erro)
+```
+
+
+```{r caption="erro maximo", render = lemon_print}
+subset(l_erro_relativo, erro == er_max)
+```
+
+
+```{r caption="erro minimo", render = lemon_print}
+subset(l_erro_relativo, erro == er_min)
+```
+
+
+## Variância das medições
+
+```{r, render=lemon_print}
+variancia <- aggregate(p_data$temperatura, list(p_data$ensaio, p_data$sensor), var)
+colnames(variancia) <- c("ensaio", "sensor", "variancia")
+
+pivot_wider(
+  variancia,
+  names_from = sensor,
+  values_from = variancia
+)
+
+```
+
+
+-----------------------------------------------------------------------------------------------------------------------------------------
+\newpage
+\onecolumn
+
+# Apêndice
+
+## Espalhamento das temperaturas por sensor
+
+```{r}
+lapply(1:5, function(a){
+  ggplot(subset(p_data, ensaio == a), aes(x = horario, y = temperatura, colour = sensor)) + geom_point() + ggtitle(paste("Ensaio", a))#+facet_wrap(~ensaio,ncol = 1, scale = "free")
+})
+```
+## Distribuição das temperaturas sensor t1
+
+```{r}
+ggplot(data, aes(x = t1)) + geom_bar()
+```
+
+## Distribuição das temperaturas dos ensaio
+
+```{r}
+ggplot(p_data, aes(x = temperatura, colour = ensaio)) + geom_bar()
+
+```
+
+
+## Diferença entre medições
+
+```{r, render = lemon_print, include=FALSE}
+
+for (x in 1:5) {
+  print(diff[x])  
+}
+
+```
